@@ -1,16 +1,33 @@
 from __future__ import annotations
-    tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=use_fast)
 
-    train_data = train_df[[TEXT_COL, task]].rename(columns={task: "label"}).copy()
-    val_data = val_df[[TEXT_COL, task]].rename(columns={task: "label"}).copy()
-    train_data["label"] = train_data["label"].map(label2id)
-    val_data["label"] = val_data["label"].map(label2id)
+import numpy as np
+from datasets import Dataset
+from transformers import (
+    AutoTokenizer,
+    AutoModelForSequenceClassification,
+    DataCollatorWithPadding,
+    Trainer,
+    TrainingArguments,
+    EarlyStoppingCallback,
+)
+from .config import TEXT_COL
+from .metrics import evaluate_classification
 
-    train_ds = Dataset.from_pandas(train_data, preserve_index=False)
-    val_ds = Dataset.from_pandas(val_data, preserve_index=False)
+def train_hf_classifier(
+    train_df,
+    val_df,
+    task,
+    labels,
+    model_name,
+    output_dir,
+    epochs=4,
+    batch_size=8,
+    learning_rate=2e-5,
+    max_length=256,
+    use_fast=False,
+):
 
-    def preprocess(batch):
-        return tokenizer(batch[TEXT_COL], truncation=True, max_length=max_length)
+    label2id = {label: i for i, label in enumerate(labels)}
 
     train_ds = train_ds.map(preprocess, batched=True)
     val_ds = val_ds.map(preprocess, batched=True)
