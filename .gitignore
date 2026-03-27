@@ -3,6 +3,3 @@
 __pycache__/
 *.pyc
 
-models/
-outputs/
-data/processed/

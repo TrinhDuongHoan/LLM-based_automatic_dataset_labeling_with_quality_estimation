@@ -41,6 +41,7 @@ The pipeline currently compares several automatic labelers:
 - `seed_logreg`: logistic regression trained only on seed labels
 - `seed_nb`: Multinomial Naive Bayes trained only on seed labels
 - `ensemble_vote`: combines multiple pseudo-labelers by averaged probabilities
+- `hf_llm_*`: optional Hugging Face instruction-tuned LLM labeler for Kaggle
 
 ## Downstream Models Compared
 
@@ -120,6 +121,31 @@ python3 scripts/evaluate.py
 python3 scripts/visualize.py --sample-labeler ensemble_vote
 ```
 
+### 4. Kaggle LLM run
+
+For Kaggle GPU, enable the optional Hugging Face LLM labeler:
+
+```bash
+pip install -r requirements.txt
+export PYTHONPATH=$(pwd)/src
+python3 scripts/prepare_data.py --source /kaggle/input/<your-dataset-folder>/newsCorpora.csv
+python3 scripts/generate_pseudo_labels.py \
+  --include-llm \
+  --llm-model-name google/flan-t5-base \
+  --llm-batch-size 8 \
+  --llm-num-samples 3 \
+  --max-unlabeled-rows 12000
+python3 scripts/train_models.py --quality-threshold 0.55 --max-pseudo-rows 12000
+python3 scripts/evaluate.py
+python3 scripts/visualize.py --sample-labeler hf_llm_flan_t5_base
+```
+
+Recommended Kaggle models:
+
+- `google/flan-t5-base`: safest starting point
+- `google/flan-t5-large`: better quality, heavier VRAM
+- `google/flan-ul2`: stronger but usually too heavy for simple Kaggle runs
+
 ## Main Outputs
 
 After running the pipeline, you will get:
@@ -161,7 +187,7 @@ If your local machine is too weak, you can train directly in a Kaggle Notebook b
 ```python
 !git clone <YOUR_GITHUB_REPO_URL>
 %cd LLM-based_automatic_dataset_labeling_with_quality_estimation
-!pip install -q -e .
+!pip install -q -r requirements.txt
 ```
 
 If the dataset file is already uploaded to Kaggle input storage:
@@ -176,10 +202,10 @@ Prepare data and train:
 
 ```python
 !python scripts/prepare_data.py --source /kaggle/input/<your-dataset-folder>/newsCorpora.csv
-!python scripts/generate_pseudo_labels.py
+!python scripts/generate_pseudo_labels.py --include-llm --llm-model-name google/flan-t5-base --max-unlabeled-rows 12000
 !python scripts/train_models.py --max-pseudo-rows 20000 --quality-threshold 0.55
 !python scripts/evaluate.py
-!python scripts/visualize.py --sample-labeler ensemble_vote
+!python scripts/visualize.py --sample-labeler hf_llm_flan_t5_base
 ```
 
 Or import the module directly inside the notebook:
@@ -221,8 +247,8 @@ print(result)
 1. Push this repo to GitHub.
 2. Open a Kaggle Notebook with Internet enabled.
 3. `git clone` the repo.
-4. `pip install -e .`
+4. Add `src` to `sys.path` or install requirements.
 5. Mount your dataset from Kaggle `Input`.
-6. Run the scripts or import `ldlqe` directly.
+6. Run the scripts with `--include-llm` on GPU.
 
-If you want, the next step can be adding a dedicated `kaggle_train.ipynb` template or integrating a real API/local-LLM labeler for Kaggle GPU usage.
+If you want, the next step can be adding a dedicated `kaggle_train.ipynb` template with ready-made cells for Kaggle GPU usage.
